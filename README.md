@@ -70,9 +70,9 @@ CNN的输入层的输入格式保留了图片本身的结构（多维向量）�
 
 在卷积层中有2个重要的概念：
 
-	local receptive fields（感受视野）
+    local receptive fields（感受视野）
 
-	shared weights（共享权值）
+    shared weights（共享权值）
 
 ![这里写图片描述](https://img-blog.csdn.net/20180621215724851?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1l1YmFvTG91aXNMaXU=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
 
@@ -217,13 +217,13 @@ ResNet的基本思想是引入了能够跳过一层或多层的“shortcut conne
 
 【FAQ】
 
-	1.神经网络Vs传统机器学习？
-	2.CNN与NN输入层的不同？
-	3.为什么要卷积？
-	4.为什么要池化？
-	5.为什么要dropout？
-	6.损失函数？
-	7.为什么要softmax？
+    1.神经网络Vs传统机器学习？
+    2.CNN与NN输入层的不同？
+    3.为什么要卷积？
+    4.为什么要池化？
+    5.为什么要dropout？
+    6.损失函数？
+    7.为什么要softmax？
 
 
 
@@ -357,6 +357,27 @@ print("test accuracy%g"%accuracy.eval(feed_dict={x: mnist.test.images, y_: mnist
 
 【5.2 Tensorflow实现进阶CNN】
 
+使用的数据集是CIFAR-10，这是一个经典的数据集，包含了60000张32*32的彩色图像，其中训练集50000张，测试集10000张，如同其名字，CIFAR-10数据集一共标注为10类，每一类6000张图片，这10类分别是airplane、automobile、bird、cat、deer、dog、frog、horse、ship和truck。类别之间没有重叠，也不会一张图片中出现两类物体，其另一个数据集CIFAR-100则标注了100类。
+![这里写图片描述](https://img-blog.csdn.net/20170607155257721?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbWFyc2poYW8=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+更多CIFAR相关的信息请参见：http://www.cs.toronto.edu/~kriz/cifar.html
+
+载入常用库部分首先要添加CIFAR-10相关的cifar10和cifar10_input模块，定义最大迭代轮数max_steps等宏观参数。
+
+定义初始化权重weight的函数，使用截断的正态分布来初始化权重。这里通过一个参数wl来控制对weight的正则化处理。在机器学习中，无论是分类还是回归任务，都可能会因特征过多而导致过拟合问题，一般通过特征选取或惩罚不重要的特征的权重来解决这个问题。但是对于哪些特征是不重要的，我们并不能直观得出，而正则化就是帮助我们惩罚特征权重的，即特征的权重也是损失函数的一部分。可以理解为为了使用某个特征需要付出代价，如果不是这个特征对于减少损失函数非常有效其权重就会被惩罚减小。这样就可以有效的筛选出有效的特征，通过减少特征权重防止过拟合，即奥卡姆剃刀原则（越简单越有效）。L1正则化会制造稀疏的特征，大部分无用的特征直接置为0，而L2正则化会让特征的权重不会过大，使特征的权重比较平均。对于实现L2正则化，有两种方法，tf.multiply(tf.nn.l2_loss(var), wl)其中wl是正则化系数；tf.contrib.layers.l2_regularizer(lambda)(var)其中lambda是正则化系数。
+
+随后使用cifar10模块来下载数据集并解压、展开到默认位置。再用cifar10_input模块来产生数据。其中cifar10_input.distorted_inputs()和cifar10_input.inputs()函数都是TensorFlow的操作operation，操作返回封装好的Tensor，这就需要在会话中run来实际运行。cifar10_input.distorted_inputs()对数据进行了DataAugmentation（数据增强），包括了随机的水平翻转、随机剪切一块24*24的图片、设置随机的亮度和对比度以及对数据进行标准化。通过这些操作，我们可以获得更多的带噪声的样本，扩大了样本容量，对提高准确率有所帮助。需要注意的是，对图像数据进行增强操作会耗费大量的CPU计算时间，因此函数内部使用了16个独立的线程来加速任务，函数内部会产生线程池，在需要时会通过TensorFlow queue进行调度，通过tf.train.start_queue_runners()来启动线程队列。产生测试数据集时则不需要太多操作，仅需要裁剪图片正中间的24*24大小的区块并进行数据标准化操作。
+
+创建第一个卷积层，首先通过variable_with_weight_loss函数创建卷积核的参数并进行初始化，卷积核尺寸为5*5，3个颜色通道，64个卷积核（卷积核深度为64），设置weight初始化标准差为0.05（5e-2），不对第一层卷积层的weight进行L2正则化处理，即wl设为0。在ReLU激活函数之后，我们采用一个3*3的步长为2*2的池化核进行最大池化处理，注意这里最大池化的尺寸和步长不一致，这样可以增加数据的丰富性。随后我们使用tf.nn.lrn()函数，即对结果进行LRN处理。LRN层（局部响应归一化层）模仿了生物神经系统的“侧抑制”机制，对局部神经元的活动创建竞争机制，使得其中响应比较大的值变得相对更大，并抑制其他反馈较小的神经元，增强了模型的泛化能力。LRN对ReLU这种没有上限边界的激活函数比较试用，不适合于Sigmoid这种有固定边界并且能抑制过大值的激活函数。
+
+相似的步骤创建卷积层2，注意权重weight的shape中，通道数为64，bias初始化为0.1，最后的最大池化层和LRN层调换了顺序，先进行LRN层处理后进行最大池化处理。
+
+两个卷积层后使用一个全连接层3，首先将卷积层的输出的样本都reshape为一维向量，获取每个样本的长度后作为全连接层的输入单元数，输出单元数设为384。权重weight初始化并设置L2正则化系数为0.004，我们希望这一层全连接层不要过拟合。
+
+接下来的全连接层4和前一层很像，隐含节点减少一半到192。全连接层5也类似，隐含单元变为最终的分类总数10。
+
+至此，整个网络的inference部分已经完成，网络结构如下表：
+
+![这里写图片描述](https://img-blog.csdn.net/20170607155356099?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbWFyc2poYW8=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
 ```
 # -*- coding: UTF-8 -*-
 
