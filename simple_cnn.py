@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 
-# 《TensorFlow实战》05 简单神经网络
 
 
 from tensorflow.examples.tutorials.mnist import input_data

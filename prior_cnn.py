@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 
-# 《TensorFlow实战》05 进阶神经网络
 
 import cifar10, cifar10_input
 import tensorflow as tf
