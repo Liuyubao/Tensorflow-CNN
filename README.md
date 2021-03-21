@@ -1,5 +1,4 @@
 【附上个人git完整代码地址：https://github.com/Liuyubao/Tensorflow-CNN 】
-【如有疑问，更进一步交流请留言或联系微信：523331232】
 
 Reference
 ---------
@@ -520,4 +519,3 @@ precision @ 1 =0.702
 ```
 
 【附上个人git完整代码地址：https://github.com/Liuyubao/Tensorflow-CNN】
-【如有疑问，更进一步交流请留言或联系微信：523331232】
